@@ -1,9 +1,10 @@
 <header class="flex items-center justify-between px-4 py-3 border-b shadow-sm bg-white">
     <a href="./" class="text-xl font-bold text-blue-700">No Ads Recipes</a>
   
-    <nav class="space-x-4 text-gray-700 font-medium">
+    <nav class="space-x-4 text-gray-700 font-medium" id="nav-links">
       <a href="./" class="hover:underline">Home</a>
       <a href="./new.html" class="hover:underline">Add Recipe</a>
+      <!-- My Collection link will be injected here -->
     </nav>
   
     <div id="auth-buttons" class="flex items-center gap-2 text-sm">
@@ -12,16 +13,21 @@
   
     <script type="module">
       import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+  
       const supabase = createClient(
         'https://zwpjebsbajckijqgwtnp.supabase.co',
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3cGplYnNiYWpja2lqcWd3dG5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUxMDQ3ODksImV4cCI6MjA2MDY4MDc4OX0.bqFrMUOMCD0wh3l07y8axCl_SevNf86DfV8QBOEtrR8'
       );
   
       const authBox = document.getElementById("auth-buttons");
+      const navLinks = document.getElementById("nav-links");
   
       const { data: { user } } = await supabase.auth.getUser();
   
       if (user) {
+        const username = user.email.split("@")[0];
+        navLinks.innerHTML += `<a href="./collections.html?name=${username}" class="hover:underline">My Collection</a>`;
+  
         authBox.innerHTML = `
           <span class="text-gray-600 hidden sm:inline">Hello, ${user.email}</span>
           <button id="logout-button" class="px-3 py-1 bg-gray-700 text-white rounded text-sm">Logout</button>
@@ -32,14 +38,12 @@
         });
       } else {
         authBox.innerHTML = `
-          <div id="auth-wrapper" class="flex flex-col gap-1 text-sm">
-            <form id="login-form" class="flex gap-2 items-center">
-              <input id="login-email" type="email" placeholder="Email" required class="border px-2 py-1 rounded text-sm" />
-              <input id="login-pass" type="password" placeholder="Password" required class="border px-2 py-1 rounded text-sm" />
-              <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded text-sm">Login</button>
-            </form>
-            <button id="show-signup" class="text-blue-600 hover:underline text-xs text-left px-1">New? Create account</button>
-          </div>
+          <form id="login-form" class="flex gap-2 items-center">
+            <input id="login-email" type="email" placeholder="Email" required class="border px-2 py-1 rounded text-sm" />
+            <input id="login-pass" type="password" placeholder="Password" required class="border px-2 py-1 rounded text-sm" />
+            <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded text-sm">Login</button>
+          </form>
+          <button id="show-signup" class="text-blue-600 hover:underline text-xs text-left px-1">New? Sign up</button>
         `;
   
         document.getElementById("login-form").addEventListener("submit", async (e) => {
@@ -52,7 +56,7 @@
         });
   
         document.getElementById("show-signup").addEventListener("click", () => {
-          document.getElementById("auth-wrapper").innerHTML = `
+          authBox.innerHTML = `
             <form id="signup-form" class="flex gap-2 items-center">
               <input id="signup-email" type="email" placeholder="Email" required class="border px-2 py-1 rounded text-sm" />
               <input id="signup-pass" type="password" placeholder="Password" required class="border px-2 py-1 rounded text-sm" />
@@ -71,5 +75,5 @@
         });
       }
     </script>
-</header>
+  </header>
   

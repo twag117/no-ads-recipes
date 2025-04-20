@@ -15,7 +15,12 @@
 
   <!-- Page Content -->
   <main class="p-4 max-w-4xl mx-auto">
-    <h2 class="text-2xl font-bold mb-4" id="collection-title">Collection</h2>
+    <div class="flex items-center justify-between mb-4">
+			<h2 class="text-2xl font-bold" id="collection-title">Collection</h2>
+			<button id="copy-link" class="text-sm bg-gray-200 px-3 py-1 rounded hover:bg-gray-300">
+			📎 Copy Share Link
+			</button>
+    </div>      
     <div id="recipe-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <!-- Recipes will be loaded here -->
     </div>
@@ -90,6 +95,12 @@
     }
 
     loadCollection();
+
+		document.getElementById("copy-link").addEventListener("click", () => {
+			navigator.clipboard.writeText(window.location.href);
+			alert("Link copied to clipboard!");
+		});
+
   </script>
 </body>
 </html>
