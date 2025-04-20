@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Create Recipe | No Ads Recipes</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.2"></script>
+</head>
+<body class="text-gray-800 font-sans bg-gray-50">
+
+  <!-- Header -->
+  <div hx-get="header.html?v=4" hx-trigger="load"></div>
+
+  <!-- Page Content -->
+  <main class="p-4 max-w-xl mx-auto">
+    <h2 class="text-2xl font-bold mb-6">Create a New Recipe</h2>
+
+    <form id="recipe-form" class="space-y-4">
+      <div>
+        <label for="title" class="block font-medium">Title</label>
+        <input type="text" id="title" required class="w-full border px-3 py-2 rounded" />
+      </div>
+
+      <div>
+        <label for="ingredients" class="block font-medium">Ingredients (one per line)</label>
+        <textarea id="ingredients" rows="6" required class="w-full border px-3 py-2 rounded"></textarea>
+      </div>
+
+      <div>
+        <label for="instructions" class="block font-medium">Instructions (one step per line)</label>
+        <textarea id="instructions" rows="6" required class="w-full border px-3 py-2 rounded"></textarea>
+      </div>
+
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Save Recipe</button>
+      <p id="message" class="mt-4 text-sm text-green-600 hidden">Recipe saved! 🎉</p>
+    </form>
+  </main>
+
+  <!-- Footer -->
+  <div hx-get="footer.html?v=1" hx-trigger="load"></div>
+
+  <!-- Supabase Script -->
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const supabase = createClient(
+      'https://zwpjebsbajckijqgwtnp.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3cGplYnNiYWpja2lqcWd3dG5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUxMDQ3ODksImV4cCI6MjA2MDY4MDc4OX0.bqFrMUOMCD0wh3l07y8axCl_SevNf86DfV8QBOEtrR8'
+    );
+
+    document.getElementById('recipe-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const title = document.getElementById('title').value.trim();
+      const ingredients = document.getElementById('ingredients').value.trim().split('\n').filter(i => i);
+      const instructions = document.getElementById('instructions').value.trim().split('\n').filter(i => i);
+      const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user) {
+        alert("You must be logged in to create a recipe.");
+        return;
+      }
+
+      const { error } = await supabase.from('recipes').insert({
+        title,
+        slug,
+        content: { ingredients, instructions }
+      });
+
+      if (error) {
+        alert("Error saving recipe: " + error.message);
+      } else {
+        window.location.href = `recipe.html?slug=${slug}`;
+      }
+    });
+  </script>
+</body>
+</html>
