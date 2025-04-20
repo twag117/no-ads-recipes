@@ -7,7 +7,7 @@
     </nav>
   
     <div id="auth-buttons" class="flex items-center gap-2 text-sm">
-      <!-- Auth state loads here -->
+      <!-- Auth will load here -->
     </div>
   
     <script type="module">
@@ -32,12 +32,16 @@
         });
       } else {
         authBox.innerHTML = `
-          <form id="login-form" class="flex gap-2 items-center">
-            <input id="login-email" type="email" placeholder="Email" required class="border px-2 py-1 rounded text-sm" />
-            <input id="login-pass" type="password" placeholder="Password" required class="border px-2 py-1 rounded text-sm" />
-            <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded text-sm">Login</button>
-          </form>
+          <div id="auth-wrapper" class="flex flex-col gap-1 text-sm">
+            <form id="login-form" class="flex gap-2 items-center">
+              <input id="login-email" type="email" placeholder="Email" required class="border px-2 py-1 rounded text-sm" />
+              <input id="login-pass" type="password" placeholder="Password" required class="border px-2 py-1 rounded text-sm" />
+              <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded text-sm">Login</button>
+            </form>
+            <button id="show-signup" class="text-blue-600 hover:underline text-xs text-left px-1">New? Create account</button>
+          </div>
         `;
+  
         document.getElementById("login-form").addEventListener("submit", async (e) => {
           e.preventDefault();
           const email = document.getElementById("login-email").value;
@@ -45,6 +49,25 @@
           const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
           if (error) return alert("Login failed: " + error.message);
           location.reload();
+        });
+  
+        document.getElementById("show-signup").addEventListener("click", () => {
+          document.getElementById("auth-wrapper").innerHTML = `
+            <form id="signup-form" class="flex gap-2 items-center">
+              <input id="signup-email" type="email" placeholder="Email" required class="border px-2 py-1 rounded text-sm" />
+              <input id="signup-pass" type="password" placeholder="Password" required class="border px-2 py-1 rounded text-sm" />
+              <button type="submit" class="bg-green-600 text-white px-3 py-1 rounded text-sm">Sign Up</button>
+            </form>
+          `;
+          document.getElementById("signup-form").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const email = document.getElementById("signup-email").value;
+            const pass = document.getElementById("signup-pass").value;
+            const { error } = await supabase.auth.signUp({ email, password: pass });
+            if (error) return alert("Sign-up failed: " + error.message);
+            alert("Check your email to confirm your account, then log in.");
+            location.reload();
+          });
         });
       }
     </script>
