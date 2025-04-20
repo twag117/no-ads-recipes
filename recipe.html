@@ -8,9 +8,29 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/htmx.org@1.9.2"></script>
 
-  <!-- Placeholder for schema.org recipe data -->
+  <!-- Schema.org JSON-LD placeholder -->
   <script id="schema-recipe" type="application/ld+json"></script>
+</head>
+<body class="text-gray-800 font-sans bg-gray-50">
 
+  <!-- Header -->
+  <div hx-get="header.html?v=7" hx-trigger="load"></div>
+
+  <!-- Page Content -->
+  <main class="p-4 max-w-2xl mx-auto">
+    <a href="./" class="text-blue-600 hover:underline mb-6 inline-block">&larr; Back to all recipes</a>
+
+    <div id="recipe-container" class="bg-white p-6 rounded shadow-sm">
+      <!-- Recipe content loads here -->
+    </div>
+
+    <div id="save-button-container" class="mt-4"></div>
+  </main>
+
+  <!-- Footer -->
+  <div hx-get="footer.html?v=1" hx-trigger="load"></div>
+
+  <!-- Supabase Script -->
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
@@ -23,6 +43,8 @@
     const slug = params.get("slug");
 
     const recipeContainer = document.getElementById("recipe-container");
+    const schemaEl = document.getElementById("schema-recipe");
+    const saveContainer = document.getElementById("save-button-container");
 
     async function loadRecipe() {
       if (!slug) {
@@ -30,19 +52,18 @@
         return;
       }
 
-      const { data, error } = await supabase
+      const { data: recipe, error } = await supabase
         .from("recipes")
         .select("*")
         .eq("slug", slug)
         .single();
 
-      if (error || !data) {
+      if (error || !recipe) {
         recipeContainer.innerHTML = "<p class='text-red-600'>Recipe not found.</p>";
         return;
       }
 
-      // Render recipe HTML
-      const { title, content, created_at } = data;
+      const { title, content, created_at } = recipe;
       const { ingredients = [], instructions = [] } = content || {};
 
       recipeContainer.innerHTML = `
@@ -60,42 +81,70 @@
         </ol>
       `;
 
-      // Inject schema.org Recipe JSON-LD
-      const structuredData = {
+      // Inject schema.org
+      schemaEl.textContent = JSON.stringify({
         "@context": "https://schema.org/",
         "@type": "Recipe",
         "name": title,
-        "author": {
-          "@type": "Organization",
-          "name": "No Ads Recipes"
-        },
+        "author": { "@type": "Organization", "name": "No Ads Recipes" },
         "datePublished": created_at,
         "recipeIngredient": ingredients,
         "recipeInstructions": instructions,
         "description": "Recipe from No Ads Recipes"
-      };
+      }, null, 2);
 
-      document.getElementById("schema-recipe").textContent = JSON.stringify(structuredData, null, 2);
+      // Try to show "Save to My Collection" button
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData?.user;
+
+      if (!user) return;
+
+      // Get user's collection
+      const { data: collection } = await supabase
+        .from('collections')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!collection) return;
+
+      // Check if already saved
+      const { data: link } = await supabase
+        .from('collection_recipes')
+        .select('*')
+        .eq('collection_id', collection.id)
+        .eq('recipe_id', recipe.id)
+        .maybeSingle();
+
+      if (link) {
+        saveContainer.innerHTML = `<p class="text-green-600">✅ Saved to your collection</p>`;
+        return;
+      }
+
+      // Show save button
+      saveContainer.innerHTML = `
+        <button id="save-btn" class="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+          💾 Save to My Collection
+        </button>
+      `;
+
+      document.getElementById("save-btn").addEventListener("click", async () => {
+        const { error: insertError } = await supabase
+          .from('collection_recipes')
+          .insert({
+            collection_id: collection.id,
+            recipe_id: recipe.id
+          });
+
+        if (insertError) {
+          alert("Failed to save recipe: " + insertError.message);
+        } else {
+          saveContainer.innerHTML = `<p class="text-green-600">✅ Saved to your collection</p>`;
+        }
+      });
     }
 
     loadRecipe();
   </script>
-</head>
-<body class="text-gray-800 font-sans bg-gray-50">
-
-  <!-- Header -->
-  <div hx-get="header.html" hx-trigger="load"></div>
-
-  <!-- Page Content -->
-  <main class="p-4 max-w-2xl mx-auto">
-    <a href="./" class="text-blue-600 hover:underline mb-6 inline-block">&larr; Back to all recipes</a>
-    <div id="recipe-container" class="bg-white p-6 rounded shadow-sm">
-      <!-- Recipe content loads here -->
-    </div>
-  </main>
-
-  <!-- Footer -->
-  <div hx-get="footer.html" hx-trigger="load"></div>
-
 </body>
 </html>
