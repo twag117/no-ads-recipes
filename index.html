@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>No Ads Recipes</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const supabase = createClient(
+      'https://zwpjebsbajckijqgwtnp.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3cGplYnNiYWpja2lqcWd3dG5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUxMDQ3ODksImV4cCI6MjA2MDY4MDc4OX0.bqFrMUOMCD0wh3l07y8axCl_SevNf86DfV8QBOEtrR8'
+    );
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const signupForm = document.getElementById('signup-form');
+      const loginForm = document.getElementById('login-form');
+      const logoutButton = document.getElementById('logout-button');
+      const userInfo = document.getElementById('user-info');
+
+      // Sign up
+      signupForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('signup-email').value;
+        const password = document.getElementById('signup-password').value;
+
+        const { data, error } = await supabase.auth.signUp({ email, password });
+
+        if (error) {
+          alert('Error signing up: ' + error.message);
+        } else {
+          alert('Sign-up successful! Please check your email to confirm your account.');
+        }
+      });
+
+      // Log in
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (error) {
+          alert('Error logging in: ' + error.message);
+        } else {
+          const user = data.user;
+          userInfo.textContent = 'Logged in as: ' + user.email;
+          logoutButton.style.display = 'block';
+
+          // Auto-create collection if it doesn't exist
+          const username = user.email.split('@')[0];
+          const { data: existing, error: checkError } = await supabase
+            .from('collections')
+            .select('id')
+            .eq('user_id', user.id)
+            .single();
+
+          if (!existing && !checkError) {
+            const { error: insertError } = await supabase.from('collections').insert({
+              name: username,
+              user_id: user.id
+            });
+
+            if (insertError) {
+              console.error('Error creating collection:', insertError.message);
+            } else {
+              console.log('Collection created for', username);
+            }
+          }
+        }
+      });
+
+      // Log out
+      logoutButton.addEventListener('click', async () => {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          alert('Error logging out: ' + error.message);
+        } else {
+          userInfo.textContent = '';
+          logoutButton.style.display = 'none';
+        }
+      });
+    });
+  </script>
+</head>
+<body class="p-4 text-gray-800 font-sans">
+  <h1 class="text-2xl font-bold mb-4">No Ads Recipes</h1>
+
+  <div class="mb-4">
+    <h2 class="text-xl font-semibold">Sign Up</h2>
+    <form id="signup-form" class="flex flex-col gap-2">
+      <input id="signup-email" type="email" placeholder="Email" required class="px-3 py-2 border rounded" />
+      <input id="signup-password" type="password" placeholder="Password" required class="px-3 py-2 border rounded" />
+      <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded">Sign Up</button>
+    </form>
+  </div>
+
+  <div class="mb-4">
+    <h2 class="text-xl font-semibold">Log In</h2>
+    <form id="login-form" class="flex flex-col gap-2">
+      <input id="login-email" type="email" placeholder="Email" required class="px-3 py-2 border rounded" />
+      <input id="login-password" type="password" placeholder="Password" required class="px-3 py-2 border rounded" />
+      <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Log In</button>
+    </form>
+  </div>
+
+  <div class="mb-4">
+    <p id="user-info" class="text-lg"></p>
+    <button id="logout-button" class="px-4 py-2 bg-gray-600 text-white rounded" style="display: none;">Log Out</button>
+  </div>
+</body>
+</html>
