@@ -11,7 +11,7 @@
 <body class="text-gray-800 font-sans bg-gray-50">
 
   <!-- Header -->
-  <div hx-get="header.html?v=6" hx-trigger="load"></div>
+  <div hx-get="header.html?v=7" hx-trigger="load"></div>
 
   <!-- Page Content -->
   <main class="p-4 max-w-xl mx-auto">
@@ -62,13 +62,23 @@
       const rawTitle = document.getElementById('title').value.trim();
       const title = titleCase(rawTitle);
 
-      const ingredients = document.getElementById('ingredients')
-        .value.trim().split('\n').map(i => i.trim()).filter(i => i);
-
-      const instructions = document.getElementById('instructions')
+      // Ingredients
+      let ingredients = document.getElementById('ingredients')
         .value.trim().split('\n')
         .map(i => i.replace(/^\s*\d+[\.\)]\s*/, '').trim())
         .filter(i => i);
+      if (ingredients[0]?.toLowerCase().includes("ingredient")) {
+        ingredients = ingredients.slice(1);
+      }
+
+      // Instructions
+      let instructions = document.getElementById('instructions')
+        .value.trim().split('\n')
+        .map(i => i.replace(/^\s*\d+[\.\)]\s*/, '').trim())
+        .filter(i => i);
+      if (instructions[0]?.toLowerCase().includes("instruction")) {
+        instructions = instructions.slice(1);
+      }
 
       const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
@@ -80,7 +90,6 @@
         return;
       }
 
-      // Step 1: Insert recipe
       const { data: insertedRecipe, error: insertError } = await supabase
         .from('recipes')
         .insert({
@@ -96,7 +105,6 @@
         return;
       }
 
-      // Step 2: Get user's collection
       const { data: collection, error: collectionError } = await supabase
         .from('collections')
         .select('*')
@@ -109,7 +117,6 @@
         return;
       }
 
-      // Step 3: Link recipe to collection
       const { error: linkError } = await supabase
         .from('collection_recipes')
         .insert({
@@ -121,7 +128,6 @@
         alert("Recipe saved, but failed to link to collection: " + linkError.message);
       }
 
-      // Step 4: Redirect to the recipe
       window.location.href = `recipe.html?slug=${slug}`;
     });
   </script>
