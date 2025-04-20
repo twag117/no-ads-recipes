@@ -117,7 +117,7 @@
         .maybeSingle();
 
       if (link) {
-        saveContainer.innerHTML = `<p class="text-green-600">✅ Saved to your collection</p>`;
+        saveContainer.innerHTML = `<p class="text-green-600">✅ Already saved to your collection</p>`;
         return;
       }
 
@@ -129,15 +129,50 @@
       `;
 
       document.getElementById("save-btn").addEventListener("click", async () => {
+        // Refetch everything before insert to avoid stale IDs
+        const { data: freshUser } = await supabase.auth.getUser();
+        const freshCollection = await supabase
+          .from('collections')
+          .select('*')
+          .eq('user_id', freshUser?.user?.id)
+          .maybeSingle();
+
+        const freshRecipe = await supabase
+          .from('recipes')
+          .select('*')
+          .eq('slug', slug)
+          .maybeSingle();
+
+        if (!freshRecipe?.data?.id || !freshCollection?.data?.id) {
+          alert("Something went wrong with save.");
+          return;
+        }
+
+        const { data: existing } = await supabase
+          .from('collection_recipes')
+          .select('*')
+          .eq('collection_id', freshCollection.data.id)
+          .eq('recipe_id', freshRecipe.data.id)
+          .maybeSingle();
+
+        if (existing) {
+          saveContainer.innerHTML = `<p class="text-green-600">✅ Already saved to your collection</p>`;
+          return;
+        }
+
         const { error: insertError } = await supabase
           .from('collection_recipes')
           .insert({
-            collection_id: collection.id,
-            recipe_id: recipe.id
+            collection_id: freshCollection.data.id,
+            recipe_id: freshRecipe.data.id
           });
 
         if (insertError) {
-          alert("Failed to save recipe: " + insertError.message);
+          if (insertError.message.includes("duplicate key")) {
+            saveContainer.innerHTML = `<p class="text-green-600">✅ Already saved to your collection</p>`;
+          } else {
+            alert("Failed to save recipe: " + insertError.message);
+          }
         } else {
           saveContainer.innerHTML = `<p class="text-green-600">✅ Saved to your collection</p>`;
         }
