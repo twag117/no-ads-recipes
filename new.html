@@ -90,45 +90,52 @@
         return;
       }
 
-      const { data: insertedRecipe, error: insertError } = await supabase
-        .from('recipes')
-        .insert({
-          title,
-          slug,
-          content: { ingredients, instructions }
-        })
-        .select()
-        .single();
+			// Step 1: Insert recipe
+			const { data: insertedRecipe, error: insertError } = await supabase
+			.from('recipes')
+			.insert({
+					title,
+					slug,
+					content: { ingredients, instructions }
+			})
+			.select()
+			.single();
 
-      if (insertError) {
-        alert("Error saving recipe: " + insertError.message);
-        return;
-      }
+			if (insertError || !insertedRecipe?.id) {
+			alert("Error saving recipe: " + (insertError?.message || "Unknown error"));
+			return;
+			}
 
-      const { data: collection, error: collectionError } = await supabase
-        .from('collections')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+			console.log("👨‍🍳 Inserted recipe ID:", insertedRecipe.id);
 
-      if (collectionError || !collection) {
-        alert("Recipe saved, but we couldn't find your collection.");
-        window.location.href = `recipe.html?slug=${slug}`;
-        return;
-      }
+			// Step 2: Get user's collection
+			const { data: collection, error: collectionError } = await supabase
+			.from('collections')
+			.select('*')
+			.eq('user_id', user.id)
+			.maybeSingle();
 
-      const { error: linkError } = await supabase
-        .from('collection_recipes')
-        .insert({
-          collection_id: collection.id,
-          recipe_id: insertedRecipe.id
-        });
+			if (collectionError || !collection?.id) {
+			alert("Recipe saved, but we couldn't find your collection.");
+			window.location.href = `recipe.html?slug=${slug}`;
+			return;
+			}
 
-      if (linkError) {
-        alert("Recipe saved, but failed to link to collection: " + linkError.message);
-      }
+			// Step 3: Link recipe to collection
+			const { error: linkError } = await supabase
+			.from('collection_recipes')
+			.insert({
+					collection_id: collection.id,
+					recipe_id: insertedRecipe.id
+			});
 
-      window.location.href = `recipe.html?slug=${slug}`;
+			if (linkError && !linkError.message.includes("duplicate key")) {
+			alert("Recipe saved, but failed to link to collection: " + linkError.message);
+			}
+
+			// Step 4: Redirect
+			window.location.href = `recipe.html?slug=${slug}`;
+
     });
   </script>
 </body>
