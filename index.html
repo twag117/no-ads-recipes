@@ -5,13 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>No Ads Recipes</title>
 
-  <!-- TailwindCSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- HTMX -->
   <script src="https://unpkg.com/htmx.org@1.9.2"></script>
 
-  <!-- Supabase Client -->
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
@@ -21,68 +17,111 @@
     );
 
     document.addEventListener('DOMContentLoaded', async () => {
-      const logoutButton = document.getElementById('logout-button');
-      const userInfo = document.getElementById('user-info');
-
-      // Check if user is logged in
+      // Auth logic
       const {
         data: { user }
       } = await supabase.auth.getUser();
 
       if (user) {
-        console.log("🧠 Logged in user:", user);
         const username = user.email.split('@')[0];
-
-        // Inject auth UI
         document.getElementById('auth-buttons').innerHTML = `
           <span class="text-gray-600">Hello, ${user.email}</span>
           <button id="logout-button" class="px-3 py-1 bg-gray-700 text-white rounded text-sm">Logout</button>
         `;
-
-        // Hook up logout
         document.getElementById('logout-button').addEventListener('click', async () => {
           await supabase.auth.signOut();
           location.reload();
         });
 
-        // Auto-create collection
-        const { data: existing, error: checkError } = await supabase
+        const { data: existing } = await supabase
           .from('collections')
           .select('*')
           .eq('user_id', user.id);
 
         if (!existing || existing.length === 0) {
-          const { error: insertError } = await supabase.from('collections').insert({
+          await supabase.from('collections').insert({
             name: username,
             user_id: user.id
           });
-
-          if (insertError) {
-            console.error('❌ Error creating collection:', insertError.message);
-          } else {
-            console.log('✅ Collection created for', username);
-          }
-        } else {
-          console.log("ℹ️ Collection already exists for user:", username);
         }
       }
+
+      // Recipe loading
+      const searchInput = document.getElementById('search');
+      const sortSelect = document.getElementById('sort');
+      const resultsContainer = document.getElementById('recipe-list');
+
+      async function loadRecipes() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const sortBy = sortSelect.value;
+
+        let query = supabase.from('recipes').select('*');
+
+        if (sortBy === 'title') {
+          query = query.order('title', { ascending: true });
+        } else {
+          query = query.order('created_at', { ascending: false });
+        }
+
+        const { data: recipes, error } = await query;
+
+        if (error) {
+          resultsContainer.innerHTML = `<p class="text-red-600">Error loading recipes.</p>`;
+          console.error(error);
+          return;
+        }
+
+        const filtered = recipes.filter((r) =>
+          r.title.toLowerCase().includes(searchTerm)
+        );
+
+        if (filtered.length === 0) {
+          resultsContainer.innerHTML = `<p class="text-gray-600">No recipes found.</p>`;
+          return;
+        }
+
+        resultsContainer.innerHTML = filtered
+          .map(
+            (r) => `
+          <div class="border rounded-lg p-4 shadow-sm bg-white hover:shadow-md transition">
+            <h3 class="text-lg font-semibold mb-1">${r.title}</h3>
+            <a href="/no-ads-recipes/recipe/${r.slug}" class="text-blue-600 text-sm hover:underline">View Recipe</a>
+          </div>
+        `
+          )
+          .join('');
+      }
+
+      // Trigger loading
+      searchInput.addEventListener('input', loadRecipes);
+      sortSelect.addEventListener('change', loadRecipes);
+      loadRecipes();
     });
   </script>
 </head>
 <body class="text-gray-800 font-sans bg-gray-50">
 
-  <!-- Header include -->
+  <!-- Header -->
   <div hx-get="header.html" hx-trigger="load"></div>
 
   <!-- Page Content -->
   <main class="p-4 max-w-4xl mx-auto">
     <h2 class="text-2xl font-bold mb-4">Featured Recipes</h2>
-    <p class="text-gray-600 mb-8">Search, filter, and sort delicious recipes without the fluff. Coming soon...</p>
 
-    <!-- This is where the recipe list/filter/search UI will go next -->
+    <div class="flex flex-wrap items-center gap-4 mb-6">
+      <input id="search" type="text" placeholder="Search recipes..." class="px-4 py-2 border rounded w-full sm:w-1/2" />
+      <select id="sort" class="px-4 py-2 border rounded">
+        <option value="date">Newest</option>
+        <option value="title">Alphabetical</option>
+      </select>
+    </div>
+
+    <div id="recipe-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <!-- Recipes load here -->
+    </div>
   </main>
 
-  <!-- Footer include -->
+  <!-- Footer -->
   <div hx-get="footer.html" hx-trigger="load"></div>
 
 </body>
