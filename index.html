@@ -46,28 +46,35 @@
           alert('Error logging in: ' + error.message);
         } else {
           const user = data.user;
+          console.log("🧠 Logged in user:", user);
+
           userInfo.textContent = 'Logged in as: ' + user.email;
           logoutButton.style.display = 'block';
 
-          // Auto-create collection if it doesn't exist
           const username = user.email.split('@')[0];
+          console.log("👤 Checking for existing collection with username:", username);
+
+          // Check if collection exists (no .single, use .select('*') to avoid 406)
           const { data: existing, error: checkError } = await supabase
             .from('collections')
             .select('*')
             .eq('user_id', user.id);
 
+          console.log("🔍 Existing collection:", existing, "Error:", checkError);
 
-          if (!existing && !checkError) {
+          if (!existing || existing.length === 0) {
             const { error: insertError } = await supabase.from('collections').insert({
               name: username,
               user_id: user.id
             });
 
             if (insertError) {
-              console.error('Error creating collection:', insertError.message);
+              console.error('❌ Error creating collection:', insertError.message);
             } else {
-              console.log('Collection created for', username);
+              console.log('✅ Collection created for', username);
             }
+          } else {
+            console.log("ℹ️ Collection already exists for user:", username);
           }
         }
       });
