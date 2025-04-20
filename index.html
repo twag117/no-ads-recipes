@@ -4,7 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>No Ads Recipes</title>
+
+  <!-- TailwindCSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- HTMX -->
+  <script src="https://unpkg.com/htmx.org@1.9.2"></script>
+
+  <!-- Supabase Client -->
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
@@ -13,109 +20,70 @@
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3cGplYnNiYWpja2lqcWd3dG5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUxMDQ3ODksImV4cCI6MjA2MDY4MDc4OX0.bqFrMUOMCD0wh3l07y8axCl_SevNf86DfV8QBOEtrR8'
     );
 
-    document.addEventListener('DOMContentLoaded', () => {
-      const signupForm = document.getElementById('signup-form');
-      const loginForm = document.getElementById('login-form');
+    document.addEventListener('DOMContentLoaded', async () => {
       const logoutButton = document.getElementById('logout-button');
       const userInfo = document.getElementById('user-info');
 
-      // Sign up
-      signupForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('signup-email').value;
-        const password = document.getElementById('signup-password').value;
+      // Check if user is logged in
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
 
-        const { data, error } = await supabase.auth.signUp({ email, password });
+      if (user) {
+        console.log("🧠 Logged in user:", user);
+        const username = user.email.split('@')[0];
 
-        if (error) {
-          alert('Error signing up: ' + error.message);
-        } else {
-          alert('Sign-up successful! Please check your email to confirm your account.');
-        }
-      });
+        // Inject auth UI
+        document.getElementById('auth-buttons').innerHTML = `
+          <span class="text-gray-600">Hello, ${user.email}</span>
+          <button id="logout-button" class="px-3 py-1 bg-gray-700 text-white rounded text-sm">Logout</button>
+        `;
 
-      // Log in
-      loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('login-email').value;
-        const password = document.getElementById('login-password').value;
+        // Hook up logout
+        document.getElementById('logout-button').addEventListener('click', async () => {
+          await supabase.auth.signOut();
+          location.reload();
+        });
 
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        // Auto-create collection
+        const { data: existing, error: checkError } = await supabase
+          .from('collections')
+          .select('*')
+          .eq('user_id', user.id);
 
-        if (error) {
-          alert('Error logging in: ' + error.message);
-        } else {
-          const user = data.user;
-          console.log("🧠 Logged in user:", user);
+        if (!existing || existing.length === 0) {
+          const { error: insertError } = await supabase.from('collections').insert({
+            name: username,
+            user_id: user.id
+          });
 
-          userInfo.textContent = 'Logged in as: ' + user.email;
-          logoutButton.style.display = 'block';
-
-          const username = user.email.split('@')[0];
-          console.log("👤 Checking for existing collection with username:", username);
-
-          // Check if collection exists (no .single, use .select('*') to avoid 406)
-          const { data: existing, error: checkError } = await supabase
-            .from('collections')
-            .select('*')
-            .eq('user_id', user.id);
-
-          console.log("🔍 Existing collection:", existing, "Error:", checkError);
-
-          if (!existing || existing.length === 0) {
-            const { error: insertError } = await supabase.from('collections').insert({
-              name: username,
-              user_id: user.id
-            });
-
-            if (insertError) {
-              console.error('❌ Error creating collection:', insertError.message);
-            } else {
-              console.log('✅ Collection created for', username);
-            }
+          if (insertError) {
+            console.error('❌ Error creating collection:', insertError.message);
           } else {
-            console.log("ℹ️ Collection already exists for user:", username);
+            console.log('✅ Collection created for', username);
           }
-        }
-      });
-
-      // Log out
-      logoutButton.addEventListener('click', async () => {
-        const { error } = await supabase.auth.signOut();
-        if (error) {
-          alert('Error logging out: ' + error.message);
         } else {
-          userInfo.textContent = '';
-          logoutButton.style.display = 'none';
+          console.log("ℹ️ Collection already exists for user:", username);
         }
-      });
+      }
     });
   </script>
 </head>
-<body class="p-4 text-gray-800 font-sans">
-  <h1 class="text-2xl font-bold mb-4">No Ads Recipes</h1>
+<body class="text-gray-800 font-sans bg-gray-50">
 
-  <div class="mb-4">
-    <h2 class="text-xl font-semibold">Sign Up</h2>
-    <form id="signup-form" class="flex flex-col gap-2">
-      <input id="signup-email" type="email" placeholder="Email" required class="px-3 py-2 border rounded" />
-      <input id="signup-password" type="password" placeholder="Password" required class="px-3 py-2 border rounded" />
-      <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded">Sign Up</button>
-    </form>
-  </div>
+  <!-- Header include -->
+  <div hx-get="header.html" hx-trigger="load"></div>
 
-  <div class="mb-4">
-    <h2 class="text-xl font-semibold">Log In</h2>
-    <form id="login-form" class="flex flex-col gap-2">
-      <input id="login-email" type="email" placeholder="Email" required class="px-3 py-2 border rounded" />
-      <input id="login-password" type="password" placeholder="Password" required class="px-3 py-2 border rounded" />
-      <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Log In</button>
-    </form>
-  </div>
+  <!-- Page Content -->
+  <main class="p-4 max-w-4xl mx-auto">
+    <h2 class="text-2xl font-bold mb-4">Featured Recipes</h2>
+    <p class="text-gray-600 mb-8">Search, filter, and sort delicious recipes without the fluff. Coming soon...</p>
 
-  <div class="mb-4">
-    <p id="user-info" class="text-lg"></p>
-    <button id="logout-button" class="px-4 py-2 bg-gray-600 text-white rounded" style="display: none;">Log Out</button>
-  </div>
+    <!-- This is where the recipe list/filter/search UI will go next -->
+  </main>
+
+  <!-- Footer include -->
+  <div hx-get="footer.html" hx-trigger="load"></div>
+
 </body>
 </html>
