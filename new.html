@@ -11,7 +11,7 @@
 <body class="text-gray-800 font-sans bg-gray-50">
 
   <!-- Header -->
-  <div hx-get="header.html?v=5" hx-trigger="load"></div>
+  <div hx-get="header.html?v=6" hx-trigger="load"></div>
 
   <!-- Page Content -->
   <main class="p-4 max-w-xl mx-auto">
@@ -73,22 +73,56 @@
       const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
       const { data: userData } = await supabase.auth.getUser();
-      if (!userData?.user) {
+      const user = userData?.user;
+
+      if (!user) {
         alert("You must be logged in to create a recipe.");
         return;
       }
 
-      const { error } = await supabase.from('recipes').insert({
-        title,
-        slug,
-        content: { ingredients, instructions }
-      });
+      // Step 1: Insert recipe
+      const { data: insertedRecipe, error: insertError } = await supabase
+        .from('recipes')
+        .insert({
+          title,
+          slug,
+          content: { ingredients, instructions }
+        })
+        .select()
+        .single();
 
-      if (error) {
-        alert("Error saving recipe: " + error.message);
-      } else {
-        window.location.href = `recipe.html?slug=${slug}`;
+      if (insertError) {
+        alert("Error saving recipe: " + insertError.message);
+        return;
       }
+
+      // Step 2: Get user's collection
+      const { data: collection, error: collectionError } = await supabase
+        .from('collections')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (collectionError || !collection) {
+        alert("Recipe saved, but we couldn't find your collection.");
+        window.location.href = `recipe.html?slug=${slug}`;
+        return;
+      }
+
+      // Step 3: Link recipe to collection
+      const { error: linkError } = await supabase
+        .from('collection_recipes')
+        .insert({
+          collection_id: collection.id,
+          recipe_id: insertedRecipe.id
+        });
+
+      if (linkError) {
+        alert("Recipe saved, but failed to link to collection: " + linkError.message);
+      }
+
+      // Step 4: Redirect to the recipe
+      window.location.href = `recipe.html?slug=${slug}`;
     });
   </script>
 </body>
