@@ -11,7 +11,7 @@
 <body class="text-gray-800 font-sans bg-gray-50">
 
   <!-- Header -->
-  <div hx-get="header.html?v=6" hx-trigger="load"></div>
+  <div hx-get="header.html?v=7" hx-trigger="load"></div>
 
   <!-- Page Content -->
   <main class="p-4 max-w-4xl mx-auto">
@@ -61,28 +61,22 @@
       // Step 2: Get linked recipes
       const { data: links, error: linkError } = await supabase
         .from('collection_recipes')
-        .select('recipe_id');
+        .select('recipe_id')
+        .eq('collection_id', collection.id);
 
-      if (linkError) {
-        container.innerHTML = "<p class='text-red-600'>Error loading collection.</p>";
-        return;
-      }
-
-      const recipeIds = links
-        .filter(link => link.collection_id === collection.id)
-        .map(link => link.recipe_id);
-
-      if (recipeIds.length === 0) {
+      if (linkError || !links || links.length === 0) {
         container.innerHTML = "<p class='text-gray-600'>No recipes in this collection yet.</p>";
         return;
       }
+
+      const recipeIds = links.map(link => link.recipe_id);
 
       const { data: recipes, error: recipeError } = await supabase
         .from('recipes')
         .select('*')
         .in('id', recipeIds);
 
-      if (recipeError) {
+      if (recipeError || !recipes) {
         container.innerHTML = "<p class='text-red-600'>Error loading recipes.</p>";
         return;
       }
