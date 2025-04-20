@@ -3,10 +3,50 @@
   
     <nav class="space-x-4 text-gray-700 font-medium">
       <a href="./" class="hover:underline">Home</a>
-      <a href="./collections/twag117" class="hover:underline">My Collection</a>
+      <a href="./new.html" class="hover:underline">Add Recipe</a>
     </nav>
   
     <div id="auth-buttons" class="flex items-center gap-2 text-sm">
-      <!-- Login/Logout will be injected here by JS -->
+      <!-- Auth state loads here -->
     </div>
-</header>  
+  
+    <script type="module">
+      import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+      const supabase = createClient(
+        'https://zwpjebsbajckijqgwtnp.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3cGplYnNiYWpja2lqcWd3dG5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUxMDQ3ODksImV4cCI6MjA2MDY4MDc4OX0.bqFrMUOMCD0wh3l07y8axCl_SevNf86DfV8QBOEtrR8'
+      );
+  
+      const authBox = document.getElementById("auth-buttons");
+  
+      const { data: { user } } = await supabase.auth.getUser();
+  
+      if (user) {
+        authBox.innerHTML = `
+          <span class="text-gray-600 hidden sm:inline">Hello, ${user.email}</span>
+          <button id="logout-button" class="px-3 py-1 bg-gray-700 text-white rounded text-sm">Logout</button>
+        `;
+        document.getElementById('logout-button').addEventListener('click', async () => {
+          await supabase.auth.signOut();
+          location.reload();
+        });
+      } else {
+        authBox.innerHTML = `
+          <form id="login-form" class="flex gap-2 items-center">
+            <input id="login-email" type="email" placeholder="Email" required class="border px-2 py-1 rounded text-sm" />
+            <input id="login-pass" type="password" placeholder="Password" required class="border px-2 py-1 rounded text-sm" />
+            <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded text-sm">Login</button>
+          </form>
+        `;
+        document.getElementById("login-form").addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const email = document.getElementById("login-email").value;
+          const pass = document.getElementById("login-pass").value;
+          const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+          if (error) return alert("Login failed: " + error.message);
+          location.reload();
+        });
+      }
+    </script>
+</header>
+  
