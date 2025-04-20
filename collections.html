@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Collection | No Ads Recipes</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.2"></script>
+</head>
+<body class="text-gray-800 font-sans bg-gray-50">
+
+  <!-- Header -->
+  <div hx-get="header.html?v=6" hx-trigger="load"></div>
+
+  <!-- Page Content -->
+  <main class="p-4 max-w-4xl mx-auto">
+    <h2 class="text-2xl font-bold mb-4" id="collection-title">Collection</h2>
+    <div id="recipe-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <!-- Recipes will be loaded here -->
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <div hx-get="footer.html?v=1" hx-trigger="load"></div>
+
+  <!-- Supabase Script -->
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const supabase = createClient(
+      'https://zwpjebsbajckijqgwtnp.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3cGplYnNiYWpja2lqcWd3dG5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUxMDQ3ODksImV4cCI6MjA2MDY4MDc4OX0.bqFrMUOMCD0wh3l07y8axCl_SevNf86DfV8QBOEtrR8'
+    );
+
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get("name");
+    const titleEl = document.getElementById("collection-title");
+    const container = document.getElementById("recipe-list");
+
+    async function loadCollection() {
+      if (!name) {
+        titleEl.textContent = "Collection not found";
+        return;
+      }
+
+      // Step 1: Find the collection
+      const { data: collection, error: collectionError } = await supabase
+        .from('collections')
+        .select('*')
+        .eq('name', name)
+        .maybeSingle();
+
+      if (collectionError || !collection) {
+        titleEl.textContent = "Collection not found";
+        return;
+      }
+
+      titleEl.textContent = `Collection: ${name}`;
+
+      // Step 2: Get linked recipes
+      const { data: links, error: linkError } = await supabase
+        .from('collection_recipes')
+        .select('recipe_id');
+
+      if (linkError) {
+        container.innerHTML = "<p class='text-red-600'>Error loading collection.</p>";
+        return;
+      }
+
+      const recipeIds = links
+        .filter(link => link.collection_id === collection.id)
+        .map(link => link.recipe_id);
+
+      if (recipeIds.length === 0) {
+        container.innerHTML = "<p class='text-gray-600'>No recipes in this collection yet.</p>";
+        return;
+      }
+
+      const { data: recipes, error: recipeError } = await supabase
+        .from('recipes')
+        .select('*')
+        .in('id', recipeIds);
+
+      if (recipeError) {
+        container.innerHTML = "<p class='text-red-600'>Error loading recipes.</p>";
+        return;
+      }
+
+      container.innerHTML = recipes.map(recipe => `
+        <div class="bg-white rounded shadow-sm p-4 hover:shadow-md transition">
+          <h3 class="text-lg font-semibold mb-1">${recipe.title}</h3>
+          <a href="recipe.html?slug=${recipe.slug}" class="text-blue-600 text-sm hover:underline">View Recipe</a>
+        </div>
+      `).join('');
+    }
+
+    loadCollection();
+  </script>
+</body>
+</html>
