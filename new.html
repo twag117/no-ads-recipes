@@ -11,7 +11,7 @@
 <body class="text-gray-800 font-sans bg-gray-50">
 
   <!-- Header -->
-  <div hx-get="header.html?v=4" hx-trigger="load"></div>
+  <div hx-get="header.html?v=5" hx-trigger="load"></div>
 
   <!-- Page Content -->
   <main class="p-4 max-w-xl mx-auto">
@@ -50,12 +50,26 @@
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3cGplYnNiYWpja2lqcWd3dG5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUxMDQ3ODksImV4cCI6MjA2MDY4MDc4OX0.bqFrMUOMCD0wh3l07y8axCl_SevNf86DfV8QBOEtrR8'
     );
 
+    function titleCase(str) {
+      return str.toLowerCase().split(' ').map(word =>
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' ');
+    }
+
     document.getElementById('recipe-form').addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const title = document.getElementById('title').value.trim();
-      const ingredients = document.getElementById('ingredients').value.trim().split('\n').filter(i => i);
-      const instructions = document.getElementById('instructions').value.trim().split('\n').filter(i => i);
+      const rawTitle = document.getElementById('title').value.trim();
+      const title = titleCase(rawTitle);
+
+      const ingredients = document.getElementById('ingredients')
+        .value.trim().split('\n').map(i => i.trim()).filter(i => i);
+
+      const instructions = document.getElementById('instructions')
+        .value.trim().split('\n')
+        .map(i => i.replace(/^\s*\d+[\.\)]\s*/, '').trim())
+        .filter(i => i);
+
       const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
       const { data: userData } = await supabase.auth.getUser();
